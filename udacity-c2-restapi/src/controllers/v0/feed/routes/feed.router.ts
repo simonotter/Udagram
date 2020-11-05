@@ -16,15 +16,67 @@ router.get('/', async (req: Request, res: Response) => {
     res.send(items);
 });
 
-//@TODO
-//Add an endpoint to GET a specific resource by Primary Key
+// GET a specific resource by Primary Key
+router.get('/:id', async (req: Request, res: Response) => {
+    const id = req.params.id;
+
+    // check id is valid
+    if (!id) {
+        res.status(400);
+        res.send({ message: 'id is required' });
+    }
+    
+    // find item by id
+    const item = await FeedItem.findByPk(id);
+    if (item) {
+        if(item.url) {
+            item.url = AWS.getGetSignedUrl(item.url);
+        }
+        return res.status(200)
+                  .send(item);     
+    } else {
+        return res.status(404)
+                  .send('FeedItem with id = ' + id + ' could not be found.');
+    }
+});
 
 // update a specific resource
 router.patch('/:id', 
     requireAuth, 
     async (req: Request, res: Response) => {
-        //@TODO try it yourself
-        res.send(500).send("not implemented")
+        const id = req.params.id;
+        const caption = req.body.caption;
+        const fileName = req.body.url;
+    
+        // check id is valid
+        if (!id) {
+            return res.status(400)
+                      .send({ message: 'id is required' });
+        } else {
+             // check Caption or fileName is valid
+            if (!caption && !fileName) {
+                return res.status(400).send({ message: 'Caption or fileName (or both) are required or malformed' });
+            }
+
+            // find item by id
+            const item = await FeedItem.findByPk(id);
+            if (item) {
+
+                // update item
+                if (caption) {
+                    item.caption = caption;
+                }
+                if (fileName) {
+                    item.url = fileName;
+                }
+                const saved_item = await item.save();
+
+                saved_item.url = AWS.getGetSignedUrl(saved_item.url);
+                return res.status(200).send(saved_item);     
+            } else {
+                return res.status(404).send('FeedItem with id = ' + id + ' could not be found.');
+            }
+        }
 });
 
 
